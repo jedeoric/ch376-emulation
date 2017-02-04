@@ -69,6 +69,7 @@ extern struct Library *SysBase;
 #define CH376_CMD_FILE_OPEN			0x32
 #define CH376_CMD_FILE_ENUM_GO		0x33
 #define CH376_CMD_FILE_CREATE		0x34
+#define CH376_CMD_FILE_ERASE		0x35
 #define CH376_CMD_FILE_CLOSE		0x36
 #define CH376_CMD_BYTE_LOCATE		0x39
 #define CH376_CMD_BYTE_READ			0x3a
@@ -577,6 +578,9 @@ static void system_finish_examine_directory(CH376_CONTEXT *context, CH376_DIR fi
 /* /// "Windows system functions" */
 
 #ifdef DEBUG_CH376
+void dbg_printf(char *fmt, ...);
+
+/*
 static void dbg_printf(LPCTSTR str, ...)
 {
     TCHAR buffer[256];
@@ -587,6 +591,7 @@ static void dbg_printf(LPCTSTR str, ...)
     OutputDebugString(buffer);
     va_end(args);
 }
+*/
 #else
 #define dbg_printf(...)
 #endif
@@ -854,6 +859,7 @@ static void system_free_mem(void *ptr)
 static CH376_BOOL system_init_context(CH376_CONTEXT *context, UNUSED void *user_data)
 {
   /* Nothing to do */
+	return CH376_TRUE;
 }
 
 static void system_clean_context(CH376_CONTEXT *context)
@@ -973,7 +979,8 @@ static CH376_FILE system_file_open_new(CH376_CONTEXT *context, const char *file_
 
 static void system_file_close(CH376_CONTEXT *context, CH376_FILE file)
 {
-    fclose(file);
+	if (file)
+		fclose(file);
 }
 
 static CH376_S32 system_file_seek(CH376_CONTEXT *context, CH376_FILE file, int pos)
@@ -1067,8 +1074,11 @@ static CH376_BOOL system_go_examine_directory(CH376_CONTEXT *context, CH376_LOCK
 
 static void system_finish_examine_directory(CH376_CONTEXT *context, CH376_DIR fib)
 {
-    closedir(fib->handle);
-    system_free_mem(fib);
+    if (fib)
+    {
+        closedir(fib->handle);
+        system_free_mem(fib);
+    }
 }
 
 /* /// */
@@ -1673,6 +1683,23 @@ void ch376_write_command_port(struct ch376 *ch376, CH376_U8 command)
             ch376->command_status = CH376_RET_ABORT;
         }
         break;
+
+	case CH376_CMD_FILE_ERASE:
+		ch376->command = CH376_CMD_FILE_ERASE;
+		if (ch376->root_dir_lock)
+		{
+			/*Add here Erase file emulation*/
+		}
+		else
+		{
+			dbg_printf("[WRITE][COMMAND][CH376_CMD_FILE_ERASE] no operation possible (device not mounted)\n");
+
+			ch376->interface_status = 0;
+			ch376->command_status = CH376_RET_ABORT;
+		}
+		break;
+
+		break;
 
     case CH376_CMD_RD_USB_DATA0:
         ch376->command = CH376_CMD_RD_USB_DATA0;
